@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .button-container {
+            margin-top: 5px;
+        }
+        
+        .button-container button {
+            margin-right: 5px;
+        }
+
+        .color-icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            border: 1px solid black;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h4>Drawing Website</h4>
+    <div class="button-container">
+        <input type="color" id="color-picker" value="{{ color }}" onchange="updateDrawingColor()">
+        <input type="range" id="brush-size-slider" min="1" max="100" value="{{ brush_size }}" onchange="updateBrushSize()">
+        <button onclick="selectTool('pencil')">Pencil</button>
+        <button onclick="selectTool('eraser')">Eraser</button>
+        <button onclick="selectTool('pipette')">
+            <span class="color-icon" id="pipette-color-icon"></span>Pipette
+        </button>
+        <button onclick="fillCanvas()">Fill</button>
+        <button onclick="clearAllCanvas()">Clear</button>
+        <button onclick="saveImage()">Save as</button>
+    </div>
+    <canvas id="drawing-canvas" width="800" height="600"></canvas>
+    <script>
+        var canvas = document.getElementById('drawing-canvas');
+        var context = canvas.getContext('2d');
+        var isDrawing = false;
+        var selectedTool = 'none';
+        var drawingColor = '{{ color }}'; // Початковий колір малювання
+        var brushSize = {{ brush_size }}; // Початковий розмір пензлика
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('click', pipette);
+
+        function startDrawing(event) {
+            if (selectedTool === 'pencil' || selectedTool === 'eraser') {
+                isDrawing = true;
+                draw(event);
+            }
+        }
+
+        var drawingHistory = [];
+        function draw(event) {
+            if (!isDrawing) return;
+            var x = event.offsetX;
+            var y = event.offsetY;
+
+            // Оновлюємо розмір пензлика з кожним малюванням
+            brushSize = document.getElementById('brush-size-slider').value;
+
+            context.lineWidth = brushSize;
+            if (selectedTool === 'eraser') {
+                context.strokeStyle = 'white'; // Змінюємо колір на білий для стирання
+            } else {
+                context.strokeStyle = drawingColor; // Встановлення коліру малювання
+            }
+            context.lineCap = 'round';
+
+            context.lineTo(x, y);
+            context.stroke();
+            context.beginPath();
+            context.moveTo(x, y);
+            drawingHistory.push({ x: x, y: y });
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            context.beginPath();
+        }
+
+        function clearAllCanvas() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            console.log("Canvas cleared");
+        }
+
+        function saveImage() {
+            var link = document.createElement('a');
+            link.download = 'drawing.png';
+            link.href = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+            link.click();
+            console.log("Image saved");
+        }
+
+        function selectTool(tool) {
+            selectedTool = tool;
+            if (tool === 'pencil' || tool === 'eraser') {
+                canvas.style.cursor = 'crosshair';
+            } else if (tool === 'pipette') {
+                canvas.style.cursor = 'pointer';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+            console.log("Selected tool: " + tool);
+        }
+
+        function pipette(event) {
+            if (selectedTool === 'pipette') {
+                var x = event.offsetX;
+                var y = event.offsetY;
+
+                var pixel = context.getImageData(x, y, 1, 1).data;
+                var rgba = 'rgba(' + pixel[0] + ', ' + pixel[1] + ', ' + pixel[2] + ', ' + (pixel[3] / 255) + ')';
+                
+                // Встановлення коліру малювання залежно від вибраного пікселя
+                drawingColor = rgba;
+                // Оновлення іконки кольору піпетки
+                document.getElementById('pipette-color-icon').style.backgroundColor = rgba;
+                
+                console.log("Pipetted color: " + rgba);
+            }
+        }
+
+        function updateDrawingColor() {
+            drawingColor = document.getElementById('color-picker').value;
+        }
+
+        function updateBrushSize() {
+            brushSize = document.getElementById('brush-size-slider').value;
+        }
+
+        function fillCanvas() {
+            context.fillStyle = drawingColor;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+
+</html>
